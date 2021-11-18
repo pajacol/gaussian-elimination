@@ -12,29 +12,40 @@ struct element
 
 #ifdef DEV
 static void print_state(unsigned int, double[]);
+#else
+#define count columns.ordinal
+#define i rows.ordinal
+#define j calculated_columns.ordinal
+#define k calculated_rows.ordinal
 #endif
 
 int main(int argc, char *argv[])
 {
     /* NOTE: count, i, j, k can be located in .ordinal in columns, rows, calculated_columns, calculated_rows for space optimization */
+
+#ifdef DEV
     unsigned int count, i, j, k;
+#endif
+
     double *coefficients, max;
-    struct element columns, rows, calculated_columns, calculated_rows, *previous_column, *previous_row, *current_column, *current_row, *max_column_preceding, *max_row_preceding, *last_calculated_column, *last_calculated_row;
+    struct element columns, rows, calculated_columns, calculated_rows, *current_column, *current_row, *last_calculated_column, *last_calculated_row;
     /* number of equations */
     scanf("%u", &count);
     /* allocate array of equations coefficients, list of crossed columns, list of crossed rows */
-    coefficients = sbrk(((count + 1) * sizeof(double) + sizeof(struct element) * 2) * count);
+    coefficients = sbrk(((count + 1) * sizeof(double) + (sizeof(struct element) << 1)) * count);
     /* list of crossed columns */
     columns.next = (struct element*)&coefficients[(count + 1) * count];
-    /* list of crossed columns */
+    /* list of crossed rows */
     rows.next = &columns.next[count];
     /* initialize crossed columns & crossed rows */
     for(i = 0; i < count; ++i)
     {
-        columns.next[i] = (struct element){.ordinal = i, .next = &columns.next[i + 1]};
-        rows.next[i] = (struct element){.ordinal = i, .next = &rows.next[i + 1]};
+        columns.next[i].ordinal = i;
+        columns.next[i].next = &columns.next[i + 1];
+        rows.next[i].ordinal = i;
+        rows.next[i].next = &rows.next[i + 1];
     }
-    /* initialize calculated columns & calculated rows */
+    /* initialize last calculated columns & last calculated rows */
     last_calculated_column = &calculated_columns;
     last_calculated_row = &calculated_rows;
     /* coefficients */
@@ -52,35 +63,35 @@ int main(int argc, char *argv[])
     {
         /* find maximum coefficient */
         max = 0.0;
-        previous_row = &rows;
+        current_row = &rows;
         for(j = 0; j < count - i; ++j)
         {
-            current_row = previous_row->next;
-            previous_column = &columns;
+            current_column = &columns;
             for(k = 0; k < count - i; ++k)
             {
-                current_column = previous_column->next;
-                if(fabs(coefficients[(count + 1) * current_row->ordinal + current_column->ordinal]) > fabs(max))
+                if(fabs(coefficients[(count + 1) * current_row->next->ordinal + current_column->next->ordinal]) > fabs(max))
                 {
-                    max_column_preceding = previous_column;
-                    max_row_preceding = previous_row;
-                    max = coefficients[(count + 1) * current_row->ordinal + current_column->ordinal];
+                    last_calculated_column->next = current_column;
+                    last_calculated_row->next = current_row;
+                    max = coefficients[(count + 1) * current_row->next->ordinal + current_column->next->ordinal];
                 }
-                previous_column = current_column;
+                current_column = current_column->next;
             }
-            previous_row = current_row;
+            current_row = current_row->next;
         }
         /* cross out max column & max row */
-        last_calculated_column->next = max_column_preceding->next;
-        last_calculated_row->next = max_row_preceding->next;
+        current_column = last_calculated_column->next;
+        current_row = last_calculated_row->next;
+        last_calculated_column->next = current_column->next;
+        last_calculated_row->next = current_row->next;
+        current_column->next = current_column->next->next;
+        current_row->next = current_row->next->next;
         last_calculated_column = last_calculated_column->next;
         last_calculated_row = last_calculated_row->next;
-        max_column_preceding->next = last_calculated_column->next;
-        max_row_preceding->next = last_calculated_row->next;
 
 #ifdef DEV
         print_state(count, coefficients);
-        printf("%lg\n\n", max);
+        printf("%g\n\n", max);
 #endif
 
         /* divide row by maximum coefficient */
@@ -135,7 +146,7 @@ int main(int argc, char *argv[])
             current_column = current_column->next;
             current_row = current_row->next;
         } while(current_column->ordinal != i);
-        printf("%lf\n", coefficients[(count + 1) * current_row->ordinal + count]);
+        printf("%f\n", coefficients[(count + 1) * current_row->ordinal + count]);
     }
     return 0;
     (void)argc;
@@ -150,7 +161,7 @@ static void print_state(unsigned int count, double coefficients[])
     {
         for(j = 0; j <= count; ++j)
         {
-            printf("%lf ", coefficients[(count + 1) * i + j]);
+            printf("%f ", coefficients[(count + 1) * i + j]);
         }
         printf("\n");
     }
