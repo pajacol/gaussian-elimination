@@ -1,3 +1,3 @@
 #!/bin/sh
 cd "`dirname $0`"
-cc -Wl,-sx,--hash-style=sysv -O3 -pie -o bin/gauss src/gauss.c
+cc -Wl,-s,-x,--hash-style=sysv -O3 -fPIE -pie -std=gnu90 -Wall -Wextra -pedantic -o bin/gauss src/*.c
